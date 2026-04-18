@@ -1,0 +1,29 @@
+groups:
+- name: inventory-alerts
+  rules:
+  - alert: LowStockAlert
+    expr: inventory_low_stock_products > 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Low stock items require attention"
+      description: "One or more active products are below their configured threshold for more than 1 minute. Current count: {{ $value }}"
+
+  - alert: HighApiLatency
+    expr: api_latency_seconds > 0.5
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High API latency detected"
+      description: "API latency for {{ $labels.endpoint }} is above 500ms for more than 2 minutes. Current value: {{ $value }}s"
+
+  - alert: HighApiErrorRate
+    expr: rate(api_requests_total{status=~"5.."}[5m]) > 0.05
+    for: 2m
+    labels:
+      severity: critical
+    annotations:
+      summary: "High error rate on API"
+      description: "API error rate (5xx) is above 5% for more than 2 minutes."

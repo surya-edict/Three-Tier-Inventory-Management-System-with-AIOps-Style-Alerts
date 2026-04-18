@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: inventory-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: inventory
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./app/backend
+    container_name: inventory-backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/inventory
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./app/backend:/app
+
+  frontend:
+    build: 
+      context: ./app/frontend
+      dockerfile: Dockerfile
+      target: builder
+    # Overriding for local dev to use dev server
+    command: npm run dev
+    container_name: inventory-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://backend:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./app/frontend:/app
+      - /app/node_modules
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: inventory-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
