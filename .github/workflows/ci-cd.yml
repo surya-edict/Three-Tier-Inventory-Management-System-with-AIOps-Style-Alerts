@@ -56,9 +56,9 @@ jobs:
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # Fixed: Added fallback to vars.AWS_ACCOUNT_ID in case it's stored as a repository variable instead of a secret
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID || vars.AWS_ACCOUNT_ID }}:role/GitHubActionsOIDCRole
-          aws-region: ${{ secrets.AWS_REGION || vars.AWS_REGION || 'us-east-1' }}
+          # Fixed: Added fallback to vars.AWS_ACCOUNT_ID with explicit ternary syntax
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID != '' && secrets.AWS_ACCOUNT_ID || vars.AWS_ACCOUNT_ID }}:role/GitHubActionsOIDCRole
+          aws-region: ${{ secrets.AWS_REGION != '' && secrets.AWS_REGION || vars.AWS_REGION != '' && vars.AWS_REGION || 'us-east-1' }}
           role-session-name: GitHubActionsSession
 
       - name: Login to Amazon ECR
