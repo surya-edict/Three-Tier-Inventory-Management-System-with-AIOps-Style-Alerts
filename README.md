@@ -83,6 +83,20 @@ A clean directory structure helps keep the code organized. Here is how this proj
 
 ***
 
+## Initial Setup & Prerequisites
+
+Before triggering the CI/CD pipeline, you must configure the following **Secrets** in your GitHub Repository settings (`Settings > Secrets and variables > Actions > Secrets`). This project uses **OIDC (OpenID Connect)** for secure AWS authentication, so long-lived access keys (`AWS_ACCESS_KEY_ID`) are completely eliminated.
+
+| Secret Name | Example Value | Description |
+| :--- | :--- | :--- |
+| `AWS_ACCOUNT_ID` | `123456789012` | Your 12-digit AWS Account ID (No spaces or dashes). Used to construct the OIDC IAM Role ARN. |
+| `ECR_REPOSITORY_BACKEND` | `inventory-backend` | The exact name of your backend Amazon ECR repository created by Terraform. |
+| `ECR_REPOSITORY_FRONTEND` | `inventory-frontend` | The exact name of your frontend Amazon ECR repository created by Terraform. |
+
+*Note: Ensure an IAM Role named `GitHubActionsOIDCRole` exists in your AWS account with a Trust Relationship mapped to this repository.*
+
+***
+
 ## Step-by-Step Setup Guide
 
 This guide is broken down into six phases. You can run the application locally first, and then deploy it to the cloud.
