@@ -233,7 +233,7 @@ By combining Terraform, AWS EKS, GitOps, observability, and proactive AIOps, thi
 
 To ensure this project meets 2026 production standards, several advanced DevOps, Security, and Cloud FinOps enhancements have been implemented across the codebase:
 
-| Feature Domain          | Normal Inventory Projects                                    | Our Next-Level Implementation                                                                                                                                            |
+| Feature Domain          | Normal Inventory Projects                                    | My Implementation                                                                                                                                            |
 | :---------------------- | :----------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Infrastructure**      | Manually clicking through AWS Console or using basic Docker. | Fully automated with **Terraform**, using remote S3 state and DynamoDB locking to prevent infrastructure corruption.                                                     |
 | **Compute & Cost**      | Standard x86 EC2 instances with high data transfer fees.     | **Graviton (ARM64)** processors for 20% better price-performance, **Spot Fleet** for stateless pods, and **VPC Endpoints** to cut NAT Gateway costs.                     |
