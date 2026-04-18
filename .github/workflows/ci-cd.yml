@@ -74,7 +74,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=backend
 
       - name: Run Trivy vulnerability scanner (Backend)
-        uses: aquasecurity/trivy-action@0.17.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_BACKEND }}:${{ github.sha }}'
           format: 'table'
@@ -97,7 +97,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=frontend
 
       - name: Run Trivy vulnerability scanner (Frontend)
-        uses: aquasecurity/trivy-action@0.17.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_FRONTEND }}:${{ github.sha }}'
           format: 'table'
