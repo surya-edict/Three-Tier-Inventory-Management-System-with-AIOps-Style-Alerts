@@ -304,4 +304,4 @@ The application has now been enhanced from a basic single-table inventory screen
 * **Low-Stock Alignment:** Prometheus alerting now uses a low-stock count metric that matches the upgraded inventory semantics better than a fixed hardcoded threshold rule.
 
 ### Manual QA
-* A step-by-step validation checklist is available in [manual-test-checklist.md](file:///d:/INTERN/DEVOPS/Three-Tier%20Inventory%20Management%20System%20with%20AIOps-Style%20Alerts/docs/manual-test-checklist.md) for local end-to-end verification.
+* A step-by-step validation checklist is available in [manual-test-checklist.md](docs/manual-test-checklist.md) for local end-to-end verification.
