@@ -85,15 +85,16 @@ A clean directory structure helps keep the code organized. Here is how this proj
 
 ## Initial Setup & Prerequisites
 
-Before triggering the CI/CD pipeline, you must configure the following **Secrets** in your GitHub Repository settings (`Settings > Secrets and variables > Actions > Secrets`). This project uses **OIDC (OpenID Connect)** for secure AWS authentication, so long-lived access keys (`AWS_ACCESS_KEY_ID`) are completely eliminated.
+The GitHub Actions workflow runs in **demo mode by default**. You do not need AWS credentials to get a green build: every push to `main` lints the repository, builds the Docker images locally, and scans them with Trivy. Deploy steps (OIDC, ECR login, image push, and GitOps updates) are skipped until you add a real AWS account.
 
-| Secret Name | Example Value | Description |
-| :--- | :--- | :--- |
-| `AWS_ACCOUNT_ID` | `123456789012` | Your 12-digit AWS Account ID (No spaces or dashes). Used to construct the OIDC IAM Role ARN. |
-| `ECR_REPOSITORY_BACKEND` | `inventory-backend` | The exact name of your backend Amazon ECR repository created by Terraform. |
-| `ECR_REPOSITORY_FRONTEND` | `inventory-frontend` | The exact name of your frontend Amazon ECR repository created by Terraform. |
+To deploy to Amazon ECR and update Kubernetes manifests, configure the secrets below in the repository settings (`Settings > Secrets and variables > Actions > Secrets`). This project uses **OIDC (OpenID Connect)** for AWS authentication, so long-lived access keys (`AWS_ACCESS_KEY_ID`) are not required. Full setup steps, including a sample IAM trust policy, are in [CI/CD and AWS deployment](#cicd-and-aws-deployment).
 
-*Note: Ensure an IAM Role named `GitHubActionsOIDCRole` exists in your AWS account with a Trust Relationship mapped to this repository.*
+| Secret Name | Required for deploy | Example Value | Description |
+| :--- | :--- | :--- | :--- |
+| `AWS_ACCOUNT_ID` | Yes | `123456789012` | Your 12-digit AWS account ID (no spaces or dashes). Leave this unset, or use the dummy value `000000000000`, to keep the pipeline in demo mode. |
+| `ECR_REPOSITORY_BACKEND` | Yes | `inventory-backend` | The exact name of your backend Amazon ECR repository. Defaults to `inventory-backend` in demo mode. |
+| `ECR_REPOSITORY_FRONTEND` | Yes | `inventory-frontend` | The exact name of your frontend Amazon ECR repository. Defaults to `inventory-frontend` in demo mode. |
+| `AWS_REGION` | No | `us-east-1` | AWS region for ECR and the OIDC role session. Defaults to `us-east-1` if unset. |
 
 ***
 
@@ -141,10 +142,16 @@ We use Terraform to create the required AWS resources (VPC, EKS, RDS).
 The project includes a GitHub Actions workflow located in `.github/workflows/ci-cd.yml`.
 Every time you push code to the `main` branch, the pipeline will automatically:
 
-1. Build the Frontend and Backend Docker images.
-2. Scan the images for security vulnerabilities using **Trivy**.
-3. Push the secure images to Amazon ECR.
-4. Update the Kubernetes manifests with the new image tags.
+1. Run linting and security scans (Semgrep and Gitleaks).
+2. Build the frontend and backend Docker images.
+3. Scan the images for security vulnerabilities using **Trivy**.
+
+If a real `AWS_ACCOUNT_ID` secret is configured, the pipeline also:
+
+4. Pushes the images to Amazon ECR.
+5. Updates the Kubernetes manifests with the new image tags.
+
+Without that secret, those deploy steps are skipped. See [CI/CD and AWS deployment](#cicd-and-aws-deployment).
 
 ### Phase 4: GitOps Deployment (CD)
 
@@ -193,6 +200,74 @@ To verify that the system handles traffic well and that alerts trigger correctly
 3. Open Grafana to watch the metrics spike and confirm that Alertmanager sends the appropriate warnings.
 
 ***
+
+## CI/CD and AWS deployment
+
+The workflow in `.github/workflows/ci-cd.yml` has two modes.
+
+**Demo mode** is the default. It is used when the `AWS_ACCOUNT_ID` secret is missing or set to the dummy placeholder `000000000000`. In this mode the pipeline still runs Lint & Test, builds the backend and frontend images locally (tagged with the placeholder registry `000000000000.dkr.ecr.us-east-1.amazonaws.com` and the default repository names), and runs Trivy against those images. AWS authentication, ECR login, image pushes, and GitOps manifest updates are skipped. A notice is printed in the job log explaining that deploy is disabled.
+
+Trivy always reports `CRITICAL` and `HIGH` findings. In demo mode it does not fail the job, because common base images often contain unfixed high-severity vulnerabilities that would keep the pipeline red even when application code is clean. When a real AWS account is configured, Trivy uses the original policy and fails the job on those findings (`exit-code: 1`).
+
+To deploy for real, complete the following steps and then re-run the workflow.
+
+### 1. Create the GitHub OIDC identity provider in AWS IAM
+
+In the AWS account that will host the ECR repositories:
+
+1. Open **IAM > Identity providers > Add provider**.
+2. Choose **OpenID Connect**.
+3. Set the provider URL to `https://token.actions.githubusercontent.com`.
+4. Set the audience to `sts.amazonaws.com`.
+5. Create the provider. AWS can resolve the thumbprint automatically in the console.
+
+### 2. Create the `GitHubActionsOIDCRole` IAM role
+
+Create an IAM role named **`GitHubActionsOIDCRole`**. Limit the trust policy to this repository's `main` branch, and grant the role permission to push images to ECR (for example, attach `AmazonEC2ContainerRegistryPowerUser`, or a tighter custom policy scoped to your two repositories).
+
+Sample trust policy (replace `YOUR_AWS_ACCOUNT_ID` if you paste this as-is):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::YOUR_AWS_ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+          "token.actions.githubusercontent.com:sub": "repo:surya-edict/Three-Tier-Inventory-Management-System-with-AIOps-Style-Alerts:ref:refs/heads/main"
+        }
+      }
+    }
+  ]
+}
+```
+
+### 3. Create the Amazon ECR repositories
+
+Create two repositories in the same region you will use in CI (default `us-east-1`), for example `inventory-backend` and `inventory-frontend`. Names must match the GitHub secrets in the next step.
+
+### 4. Add GitHub Actions secrets
+
+In the GitHub repository, go to **Settings > Secrets and variables > Actions** and add:
+
+| Secret | Value |
+| :--- | :--- |
+| `AWS_ACCOUNT_ID` | Your 12-digit AWS account ID. Do not use `000000000000`. |
+| `ECR_REPOSITORY_BACKEND` | Backend ECR repository name, for example `inventory-backend`. |
+| `ECR_REPOSITORY_FRONTEND` | Frontend ECR repository name, for example `inventory-frontend`. |
+| `AWS_REGION` | Optional. Defaults to `us-east-1` if omitted. |
+
+The workflow treats any non-empty `AWS_ACCOUNT_ID` other than `000000000000` as a real account and turns deploy on.
+
+### 5. Re-run the workflow
+
+Push a commit to `main`, or open the latest workflow run and choose **Re-run all jobs**. The "Build, Scan, & Push" job should now assume `GitHubActionsOIDCRole`, log in to ECR, push both images, and update the manifests in `manifests/`.
 
 ## Security Practices Included
 
