@@ -63,3 +63,9 @@ spec:
             port: 8000
           initialDelaySeconds: 10
           periodSeconds: 20
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
