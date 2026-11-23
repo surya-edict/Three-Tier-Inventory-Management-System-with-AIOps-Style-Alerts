@@ -23,7 +23,7 @@ FROM python:3.11.8-slim-bookworm
 
 WORKDIR /app
 
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN groupadd -r -g 10001 appuser && useradd -r -u 10001 -g appuser appuser
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
