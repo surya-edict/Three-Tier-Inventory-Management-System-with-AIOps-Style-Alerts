@@ -10,7 +10,51 @@ spec:
   - Ingress
   - Egress
 ---
-# 2. Allow Frontend to reach Backend ONLY
+# 2. Allow all pods in the namespace to resolve DNS through kube-dns
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: inventory-system
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+---
+# 3. Allow the ALB (target-type: ip) to reach the Frontend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-allow-alb
+  namespace: inventory-system
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - ipBlock:
+        cidr: 10.0.0.0/16 # VPC CIDR where the ALB runs
+    ports:
+    - protocol: TCP
+      port: 8080
+---
+# 4. Allow Frontend and the ALB (/api route) to reach Backend ONLY
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -27,11 +71,13 @@ spec:
     - podSelector:
         matchLabels:
           app: frontend
+    - ipBlock:
+        cidr: 10.0.0.0/16 # VPC CIDR where the ALB runs
     ports:
     - protocol: TCP
       port: 8000
 ---
-# 3. Allow Backend to reach RDS
+# 5. Allow Backend to reach RDS
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
